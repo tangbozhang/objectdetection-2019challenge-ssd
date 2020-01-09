@@ -169,7 +169,7 @@ def train(args,
 					outs = exe.run(train_prog, fetch_list=[loss])
 				end_time = time.time()
 				avg_loss = np.mean(np.array(outs[0]))
-				if batch % 10 == 0:
+				if batch % 100 == 0:
 					print("Epoc {:d}, batch {:d}, loss {:.6f}, time {:.5f}".format(
 						epoc , batch, avg_loss, end_time - start_time))
 				batch += 1
@@ -184,7 +184,7 @@ def train(args,
 										  [bboxes, scores], exe, train_prog)
 			best_map = test_map
 			#save_model(exe, train_prog, model_save_dir, 'best_map')
-		print("Best test map {0}".format(best_map))
+		print("Epoc {:d}, Best test map {0}".format(epoc, best_map))
 
 
 def eval(args, data_args, configs, val_file_list):

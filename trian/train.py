@@ -46,7 +46,7 @@ add_arg('image_shape',	  str,   '3,300,300',		 "Input image shape.")
 add_arg('mean_BGR',		 str,   '127.5,127.5,127.5', "Mean value for B,G,R channel which will be subtracted.")
 add_arg('data_dir',		 str,   'work/coco', "Data directory.")
 add_arg('use_multiprocess', bool,  True,  "Whether use multi-process for data preprocessing.")
-add_arg('enable_ce',		bool,  False, "Whether use CE to evaluate the model.")
+add_arg('enable_ce',		bool,  True, "Whether use CE to evaluate the model.") #acc
 #yapf: enable
 
 train_parameters = {
@@ -76,7 +76,7 @@ train_parameters = {
 		"class_num": 81,
 		"batch_size": 32,
 		"lr": 0.001,
-		"lr_epochs": [5,20,50,100,150,200],
+		"lr_epochs": [5,20,50,100,150.200],
 		"lr_decay": [1, 0.5, 0.2, 0.1, 0.001, 0.0005, 0.0001],
 		"ap_version": '11point', # should use eval_coco_map.py to test model
 	}
@@ -255,7 +255,7 @@ def train(args,
 			batch_id = 0
 			while True:
 				test_map, = exe.run(test_prog, fetch_list=[accum_map])
-				if batch_id % 10 == 0:
+				if batch_id % 100 == 0:
 					every_epoc_map.append(test_map)
 					print("Batch {0}, map {1}".format(batch_id, test_map))
 				batch_id += 1
@@ -295,7 +295,7 @@ def train(args,
 					loss_v, = exe.run(train_prog, fetch_list=[loss])
 				loss_v = np.mean(np.array(loss_v))
 				every_epoc_loss.append(loss_v)
-				if batch_id % 10 == 0:
+				if batch_id % 100 == 0:
 					lr = np.array(fluid.global_scope().find_var('learning_rate')
 								  .get_tensor())
 					#print(lr)
