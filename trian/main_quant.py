@@ -184,7 +184,7 @@ def train(args,
 										  [bboxes, scores], exe, train_prog)
 			best_map = test_map
 			#save_model(exe, train_prog, model_save_dir, 'best_map')
-		print("Epoc {:d}, Best test map {0}".format(epoc, best_map))
+		print("Best test map {0}".format(best_map))
 
 
 def eval(args, data_args, configs, val_file_list):
