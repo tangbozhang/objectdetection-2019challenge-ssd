@@ -45,7 +45,7 @@ add_arg('ap_version',	   str,   '11point',		   "mAP version can be integral or 1
 add_arg('image_shape',	  str,   '3,300,300',		 "Input image shape.")
 add_arg('mean_BGR',		 str,   '127.5,127.5,127.5', "Mean value for B,G,R channel which will be subtracted.")
 add_arg('data_dir',		 str,   'work/coco', "Data directory.")
-add_arg('use_multiprocess', bool,  True,  "Whether use multi-process for data preprocessing.")
+add_arg('use_multiprocess', bool,  False,  "Whether use multi-process for data preprocessing.")
 add_arg('enable_ce',		bool,  True, "Whether use CE to evaluate the model.") #acc
 #yapf: enable
 
