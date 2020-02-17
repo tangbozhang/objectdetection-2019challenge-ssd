@@ -1,16 +1,3 @@
-#   Copyright (c) 2019 PaddlePaddle Authors. All Rights Reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 import os
 # os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 # os.environ["FLAGS_fraction_of_gpu_memory_to_use"] = "0.3"
@@ -31,9 +18,9 @@ parser = argparse.ArgumentParser(description=__doc__)
 add_arg = functools.partial(add_arguments, argparser=parser)
 # yapf: disable
 add_arg('batch_size',       int,   32,        "Minibatch size.")
-add_arg('data_dir',         str,   '',        "The data root path.")
+add_arg('data_dir',         str,   'work/coco',        "The data root path.")
 add_arg('test_list',        str,   '',        "The testing data lists.")
-add_arg('model_dir',        str,   '',     "The model path.")
+add_arg('model_dir',        str,   'model_snet/infer_model',     "The model path.")
 add_arg('nms_threshold',    float, 0.45,    "NMS threshold.")
 add_arg('ap_version',       str,   'cocoMAP',   "cocoMAP.")
 add_arg('mean_value_B',     float, 127.5,  "Mean value for B channel which will be subtracted.")  #123.68
@@ -51,6 +38,9 @@ def use_coco_api_compute_mAP(data_args, test_list, num_classes, test_reader, exe
         v: k
         for k, v in json_category_id_to_contiguous_id.items()
     }
+    
+    print("json_category_id_to_contiguous_id = ",json_category_id_to_contiguous_id)
+    print("contiguous_category_id_to_json_id = ",contiguous_category_id_to_json_id)
 
     dts_res = []
 
@@ -60,7 +50,9 @@ def use_coco_api_compute_mAP(data_args, test_list, num_classes, test_reader, exe
         boxes = fluid.layers.data(
             name='boxes', shape=[-1, -1, 4], dtype='float32')
         scores = fluid.layers.data(
-            name='scores', shape=[-1, num_classes, -1], dtype='float32')
+            name='scores', shape=[-1, -1, num_classes], dtype='float32')
+        print("boxes.shape = ",boxes.shape)
+        print("scores.shape = ",scores.shape)
         pred_result = fluid.layers.multiclass_nms(
             bboxes=boxes,
             scores=scores,
@@ -73,15 +65,14 @@ def use_coco_api_compute_mAP(data_args, test_list, num_classes, test_reader, exe
     executor.run(fluid.default_startup_program())
 
     for batch_id, data in enumerate(test_reader()):
-        boxes_np, scores_np = exe.run(program=infer_program,
+        boxes_np, socres_np = exe.run(program=infer_program,
                                       feed={feeded_var_names[0]: feeder.feed(data)['image']},
                                       fetch_list=target_var)
-
         nms_out = executor.run(
             program=test_program,
             feed={
                 'boxes': boxes_np,
-                'scores': scores_np
+                'scores': socres_np
             },
             fetch_list=[pred_result], return_numpy=False)
         if batch_id % 20 == 0:
@@ -105,19 +96,40 @@ def compute_score(model_dir, data_dir, test_list='annotations/instances_val2017.
                           mean_value=[127.5, 127.5, 127.5]):
     """
         compute score, mAP, flops of a model
+
         Args:
             model_dir (string): directory of model
             data_dir (string): directory of coco dataset, like '/your/path/to/coco', '/work/datasets/coco'
+
         Returns:
             tuple: score, mAP, flops.
+
         """
+    # 模型地址处理
+    width_height = ''
+    try :
+        dir_len = len(model_dir.split('/'))
+        
+        if dir_len > 0:
+            width_height = model_dir.split('/')[dir_len-1]
+        elif dir_len == 0:
+            width_height = model_dir
+        
+        height = int(width_height.split('_')[0])
+        width  = int(width_height.split('_')[1])
+        
+        print('height = ',height)
+        print('width = ',width)
+    except:
+        height=300
+        width=300
 
     place = fluid.CUDAPlace(0)
     exe = fluid.Executor(place)
     exe.run(fluid.default_startup_program())
 
     [infer_program, feeded_var_names, target_var] = fluid.io.load_inference_model(dirname=model_dir, executor=exe)
-
+    
     image_shape = [3, height, width]
 
     data_args = reader.Settings(
@@ -159,7 +171,7 @@ def compute_score(model_dir, data_dir, test_list='annotations/instances_val2017.
     if MAdds < 160.0:
         MAdds = 160.0
 
-    if MAdds > 1300.0:
+    if MAdds > 3000.0:
         score = 0.0
     else:
         score = mAP * 100 - (5.1249 * np.log(MAdds) - 14.499)

@@ -56,16 +56,16 @@ class ShuffleNetV2():
 		self.num_classes = class_dim
 		self.img_shape = img_shape
 		scale = self.scale 
-		stage_repeats = [4, 8, 4, 1, 1, 1, 1]       #4, 8, 4,1,1,1,1
+		stage_repeats = [4, 8, 4,1,1,1,1]
 		
 		if scale == 0.5:
 			stage_out_channels = [-1, 24,  48,  96, 192, 1024]
 		elif scale == 1.0:
-			stage_out_channels = [-1, 24, 116, 232, 464, 232, 116, 96, 82]
+			stage_out_channels = [-1, 24, 116, 232, 464, 82, 82, 82, 82]
 		elif scale == 1.5:
 			stage_out_channels = [-1, 24, 176, 352, 704, 1024]
 		elif scale == 2.0:
-			stage_out_channels = [-1, 24, 224, 488, 976, 2048] #-1, 24, 224, 488, 976, 2048
+			stage_out_channels = [-1, 24, 224, 488, 976, 2048]
 		else:
 			raise ValueError(
 				"""{} groups is not supported for
@@ -77,7 +77,6 @@ class ShuffleNetV2():
 		conv1 = self.conv_bn_layer(input=input, filter_size=3, num_filters=input_channel, padding=1, stride=2,name='stage1_conv')	
 		pool1 = fluid.layers.pool2d(input=conv1, pool_size=3, pool_stride=2, pool_padding=1, pool_type='max')
 		conv = pool1
-		# 微调
 		#conv.stop_gradient = True
 		# bottleneck sequences
 		for idxstage in range(len(stage_repeats)):
@@ -291,7 +290,7 @@ class ShuffleNetV2():
 				name='stage_'+name+'_conv3')
 			out = fluid.layers.concat([conv_linear_1, conv_linear_2], axis=1)
 			
-		return self.channel_shuffle(out, 2) #zb 2
+		return self.channel_shuffle(out, 2)
 	
 def ShuffleNetV2_x0_5_swish():
 	model = ShuffleNetV2(scale=0.5)

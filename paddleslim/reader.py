@@ -18,18 +18,16 @@ import time
 import copy
 import six
 import math
-import numpy 
 import numpy as np
 from PIL import Image
 from PIL import ImageDraw
 import image_util
 import paddle
-import cv2
-import time
 
 from collections import OrderedDict
 from prettytable import PrettyTable
 import distutils.util
+
 
 class Settings(object):
     def __init__(self,
@@ -57,16 +55,16 @@ class Settings(object):
         self._resize_width = resize_w
         self._img_mean = np.array(mean_value)[:, np.newaxis, np.newaxis].astype(
             'float32')
-        self._expand_prob = 0.5     #扩展 0.5
-        self._expand_max_ratio = 4  #4
-        self._hue_prob = 0.5        #色度 0.5
-        self._hue_delta = 18        #18
-        self._contrast_prob = 0.5    #对比度 0.5
-        self._contrast_delta = 0.5   #0.5
-        self._saturation_prob = 0.5   #饱和 0.5
-        self._saturation_delta = 0.5   #0.5
-        self._brightness_prob = 0.5    #亮度 0.5
-        self._brightness_delta = 0.125  #0.125
+        self._expand_prob = 0.5
+        self._expand_max_ratio = 4
+        self._hue_prob = 0.5
+        self._hue_delta = 18
+        self._contrast_prob = 0.5
+        self._contrast_delta = 0.5
+        self._saturation_prob = 0.5
+        self._saturation_delta = 0.5
+        self._brightness_prob = 0.5
+        self._brightness_delta = 0.125
 
     @property
     def dataset(self):
@@ -77,7 +75,7 @@ class Settings(object):
         return self._ap_version
 
     @property
-    def apply_expand(self):
+    def apply_distort(self):
         return self._apply_expand
 
     @property
@@ -113,10 +111,9 @@ def preprocess(img, bbox_labels, mode, settings):
     img_width, img_height = img.size
     sampled_labels = bbox_labels
     if mode == 'train':
-        if settings._apply_distort:   #扭曲
+        if settings._apply_distort:
             img = image_util.distort_image(img, settings)
-        if settings._apply_expand: #扩充
-            #print("imsge_utils_apply_expand")
+        if settings._apply_expand:
             img, bbox_labels, img_width, img_height = image_util.expand_image(
                 img, bbox_labels, img_width, img_height, settings)
         # sampling
@@ -193,26 +190,12 @@ def coco(settings, coco_api, file_list, mode, batch_size, shuffle, data_dir):
             if im.mode == 'L':
                 im = im.convert('RGB')
             im_width, im_height = im.size
-
-            #im = cv2.imread(image_path)  
-            #im_height = im.shape[0]
-            #im_width = im.shape[1]
-
             im_id = image['id']
 
             # layout: category_id | xmin | ymin | xmax | ymax | iscrowd
             bbox_labels = []
             annIds = coco_api.getAnnIds(imgIds=image['id'])
             anns = coco_api.loadAnns(annIds)
-
-            #im = cv2.cvtColor(numpy.asarray(im),cv2.COLOR_RGB2BGR)
-            #start_time = time.time()  
-            #anns, im = get_new_data(anns, im, None, background=None)
-            #end_time = time.time()
-            #print('instaboost = ',str(end_time - start_time))
-
-            #im = Image.fromarray(cv2.cvtColor(im,cv2.COLOR_BGR2RGB))  
-
             for ann in anns:
                 bbox_sample = []
                 # start from 1, leave 0 to background
@@ -227,11 +210,7 @@ def coco(settings, coco_api, file_list, mode, batch_size, shuffle, data_dir):
                 bbox_sample.append(float(ymax) / im_height)
                 bbox_sample.append(float(ann['iscrowd']))
                 bbox_labels.append(bbox_sample)
-            #start_time = time.time()  
             im, sample_labels = preprocess(im, bbox_labels, mode, settings)
-            #end_time = time.time()
-            #print('preprocess = ',str(end_time - start_time))
-
             sample_labels = np.array(sample_labels)
             if len(sample_labels) == 0: continue
             im = im.astype('float32')
@@ -330,12 +309,8 @@ def train(settings,
         np.random.shuffle(images)
         if '2014' in file_list:
             sub_dir = "train2014"
-        elif 'train2017' in file_list:
+        elif '2017' in file_list:
             sub_dir = "train2017"
-        elif 'val2017' in file_list:
-            sub_dir = "val2017"
-        elif 'test2017' in file_list:
-            sub_dir = "test2017"
         data_dir = os.path.join(settings.data_dir, sub_dir)
         print("data_dir",data_dir)
         n = int(math.ceil(len(images) // num_workers)) if use_multiprocess \

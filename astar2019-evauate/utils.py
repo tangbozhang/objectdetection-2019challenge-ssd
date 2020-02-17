@@ -25,12 +25,16 @@ import six
 
 def print_arguments(args):
     """Print argparse's arguments.
+
     Usage:
+
     .. code-block:: python
+
         parser = argparse.ArgumentParser()
         parser.add_argument("name", default="Jonh", type=str, help="User name.")
         args = parser.parse_args()
         print_arguments(args)
+
     :param args: Input argparse.Namespace for printing.
     :type args: argparse.Namespace
     """
@@ -42,8 +46,11 @@ def print_arguments(args):
 
 def add_arguments(argname, type, default, help, argparser, **kwargs):
     """Add argparse's argument.
+
     Usage:
+
     .. code-block:: python
+
         parser = argparse.ArgumentParser()
         add_argument("name", str, "Jonh", "User name.", parser)
         args = parser.parse_args()
@@ -109,7 +116,7 @@ def _summary_model(block_vars, one_op):
         out_data_shape = block_vars[one_op.output("Output")[0]].shape
         c_out, c_in, k_h, k_w = k_arg_shape
         _, c_out_, h_out, w_out = out_data_shape
-        #assert c_out == c_out_, 'shape error!'
+        assert c_out == c_out_, 'shape error!'
         k_groups = one_op.attr("groups")
         kernel_ops = k_h * k_w * (c_in / k_groups)
         bias_ops = 0 if one_op.input("Bias") == [] else 1

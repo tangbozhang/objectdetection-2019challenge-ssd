@@ -36,7 +36,7 @@ add_arg('learning_rate',	float, 0.00001,			  "Learning rate.")
 add_arg('batch_size',	   int,   32,				  "Minibatch size.")
 add_arg('epoc_num',		 int,   2,				  "Epoch number.")
 add_arg('use_gpu',		  bool,  True,				"Whether use GPU.")
-add_arg('parallel',		 bool,  True,				"Whether train in parallel on multi-devices.")
+add_arg('parallel',		 bool,  False,				"Whether train in parallel on multi-devices.")
 add_arg('model_save_dir',   str,   'model_snet/snet_int8',	   "The path to save model.")
 add_arg('init_model',	   str,   'model_snet/best_model', "The init model path.")
 add_arg('ap_version',	   str,   '11point',		   "mAP version can be integral or 11point.")
@@ -147,12 +147,13 @@ def train(args,
 								train_file_list,
 								batch_size_per_device,
 								shuffle=is_shuffle,
+                                use_multiprocess=False,
 								num_workers=num_workers)
 	test_reader = reader.test(data_args, val_file_list, batch_size)
 	train_py_reader.decorate_paddle_reader(train_reader)
 	test_py_reader.decorate_paddle_reader(test_reader)
 
-	train_py_reader.start()
+# 	train_py_reader.start()
 	best_map = 0.
 	
 
@@ -183,7 +184,7 @@ def train(args,
 			fluid.io.save_inference_model(model_save_dir+"/300_300_int8_inference", [image.name],
 										  [bboxes, scores], exe, train_prog)
 			best_map = test_map
-			#save_model(exe, train_prog, model_save_dir, 'best_map')
+# 			save_model(exe, train_prog, model_save_dir, 'best_map')
 		print("Best test map {0}".format(best_map))
 
 

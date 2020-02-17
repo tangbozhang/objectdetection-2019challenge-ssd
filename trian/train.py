@@ -45,7 +45,7 @@ add_arg('ap_version',	   str,   '11point',		   "mAP version can be integral or 1
 add_arg('image_shape',	  str,   '3,300,300',		 "Input image shape.")
 add_arg('mean_BGR',		 str,   '127.5,127.5,127.5', "Mean value for B,G,R channel which will be subtracted.")
 add_arg('data_dir',		 str,   'work/coco', "Data directory.")
-add_arg('use_multiprocess', bool,  False,  "Whether use multi-process for data preprocessing.")
+add_arg('use_multiprocess', bool,  True,  "Whether use multi-process for data preprocessing.")
 add_arg('enable_ce',		bool,  True, "Whether use CE to evaluate the model.") #acc
 #yapf: enable
 
@@ -76,7 +76,7 @@ train_parameters = {
 		"class_num": 81,
 		"batch_size": 32,
 		"lr": 0.001,
-		"lr_epochs": [5,20,50,100,150.200],
+		"lr_epochs": [3,5,7,8,10,19],#zb .错误改为，5,20,50,100,150,200 
 		"lr_decay": [1, 0.5, 0.2, 0.1, 0.001, 0.0005, 0.0001],
 		"ap_version": '11point', # should use eval_coco_map.py to test model
 	}
@@ -87,11 +87,11 @@ def optimizer_setting(train_params):
 	iters = train_params["train_images"] // batch_size
 	lr = train_params["lr"]
 	boundaries = [i * iters  for i in train_params["lr_epochs"]]
-	values = [ i * lr for i in train_params["lr_decay"]]
+	values = [ i * lr for i in train_params["lr_decay"]]   #衰退
 
 	#optimizer = fluid.optimizer.Momentum(
 	#		momentum=0.9,
-	#		learning_rate=fluid.layers.piecewise_decay(boundaries, values),
+	#		learning_rate=fluid.layers.piecewise_decay(boundaries, values),   #对初始学习率进行分段(piecewise)常数衰减的功能
 	#		regularization=fluid.regularizer.L2Decay(4e-5))
 			
 	optimizer = fluid.optimizer.Momentum(
@@ -100,9 +100,9 @@ def optimizer_setting(train_params):
 			learning_rate=train_params["lr"],
 			boundaries=boundaries,
 			values=values,
-			warmup_iter=2000,
+			warmup_iter=2000, # zb 4000
 			warmup_factor=0.),
-		regularization=fluid.regularizer.L2Decay(0.00005), )
+		regularization=fluid.regularizer.L2Decay(0.00005), ) #1Decay实现L1权重衰减正则化，用于模型训练，使得权重矩阵稀疏。
 
 	return optimizer
 
@@ -129,17 +129,17 @@ def build_program(main_prog, startup_prog, train_params, is_train):
 			
 			bboxes = paddle.fluid.layers.box_coder(prior_box=box,prior_box_var=box_var,target_box=locs,code_type='decode_center_size')
 			scores = fluid.layers.softmax(input=confs)
-			scores = fluid.layers.transpose(scores, perm=[0, 2, 1])
+			scores = fluid.layers.transpose(scores, perm=[0, 2, 1]) #根据perm对输入的多维Tensor进行数据重排
 		
 			print("boxes.shape = ",bboxes.shape)
 			print("scores.shape = ",scores.shape)
 			
 			if is_train:
 				with fluid.unique_name.guard("train"):
-					loss = fluid.layers.ssd_loss(locs, confs, gt_box, gt_label, box,
-						box_var)
-					loss = fluid.layers.reduce_sum(loss)
-					loss = fluid.layers.clip(x=loss, min=1e-7, max=100. - 1e-7)
+					loss = fluid.layers.ssd_loss(locs, confs, gt_box, gt_label, box,    #计算SSD的损失，给定位置偏移预测，置信度预测，候选框和真实框标签，以及难样本挖掘的类型 
+						box_var)                                                        #返回的损失是本地化损失（或回归损失）和置信度损失（或分类损失）的加权和
+					loss = fluid.layers.reduce_sum(loss)                                #指定维度上的Tensor元素进行求和运算
+					loss = fluid.layers.clip(x=loss, min=1e-7, max=100. - 1e-7)         #对输入Tensor每个元素的数值进行裁剪，使得输出Tensor元素的数值被限制在区间[min, max]内
 					#optimizer = fluid.optimizer.Adam(learning_rate=1e-4)
 					#optimizer.minimize(loss)
 					optimizer = optimizer_setting(train_params)
@@ -238,11 +238,11 @@ def train(args,
 		if os.path.isdir(model_path):
 			shutil.rmtree(model_path)
 		print('save models to %s' % (model_path))
-		fluid.io.save_persistables(exe, model_path, main_program=main_prog)
+		fluid.io.save_persistables(exe, model_path, main_program=main_prog)  #从给定 main_program 中取出所有持久性变量，然后将它们保存
 
 	def save_inference_model(postfix, main_prog):
 		fluid.io.save_inference_model(model_save_dir+"/300_300_inference", [image.name],
-    								  [bboxes, scores], exe, main_prog)
+    								  [bboxes, scores], exe, main_prog)            #修剪指定的 main_program 以构建一个专门用于预测的 Inference Program 加上nms
 
 	best_map = 0.
 	test_map = None
@@ -312,9 +312,9 @@ def train(args,
 		#if epoc_id % 10 == 0:
 		best_map, mean_map = test(epoc_id, best_map)
 		print("Best test map {0}".format(best_map))
-		# save model
-		id_name = epoc_id % 5
-		save_model(str(id_name), train_prog)
+		# save model  zb 不必保存
+# 		id_name = epoc_id % 5
+# 		save_model(str(id_name), train_prog)
 
 	if enable_ce:
 		train_avg_loss = np.mean(every_epoc_loss)
@@ -368,8 +368,8 @@ def main():
 		resize_h=image_shape[1],
 		resize_w=image_shape[2],
 		mean_value=mean_BGR,
-		apply_distort=True,
-		apply_expand=True,
+		apply_distort=True, #扭曲
+		apply_expand=True, #扩充
 		ap_version = args.ap_version)
 	train(args,
 		  data_args,

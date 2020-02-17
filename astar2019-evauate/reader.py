@@ -71,7 +71,7 @@ class Settings(object):
         return self._ap_version
 
     @property
-    def apply_expand(self):
+    def apply_distort(self):
         return self._apply_expand
 
     @property
@@ -325,7 +325,7 @@ def test(settings, file_list, batch_size):
         images = coco_api.loadImgs(image_ids)
         if '2014' in file_list:
             sub_dir = "val2014"
-        elif '2017' in file_list:
+        elif 'val2017' in file_list:
             sub_dir = "val2017"
         data_dir = os.path.join(settings.data_dir, sub_dir)
         return coco(settings, coco_api, images, 'test', batch_size, False,
